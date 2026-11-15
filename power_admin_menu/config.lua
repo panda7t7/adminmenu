@@ -27,7 +27,7 @@ Config.Roles = {
         'vehicles.view','vehicles.spawn','vehicles.give','items.view','items.give','items.create','jobs.view','jobs.create','staff.view','audit.view','resources.view'
     } },
     admin = { label = 'Administrator', permissions = {
-        'dashboard.view','entities.delete','entities.spawn','players.view','players.dossier','players.inventory','players.money.view','players.notes.view','players.notes.add',
+        'dashboard.view','entities.delete','entities.spawn','entities.manage','players.view','players.dossier','players.inventory','players.money.view','players.notes.view','players.notes.add',
         'players.history','players.spectate','players.warn','players.ban','players.teleport','players.bring','players.freeze',
         'players.heal','players.kick','world.view','world.weather','world.time','vehicles.view','vehicles.spawn','vehicles.give','items.view','items.give','jobs.view','audit.view','resources.view'
     } },
