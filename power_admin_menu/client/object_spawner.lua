@@ -14,13 +14,20 @@ local placementCursorVisible = true
 local placementOptions = {}
 local placementBaseCoords = nil
 local placementModelName = nil
+local placementGizmoMode = 'move'
+local lastAxisUiUpdate = 0
 
 local function setPlacementCursor(visible)
     placementCursorVisible = visible == true
     if placingObject then
-        -- Keep keyboard focus in NUI either way; only pointer visibility changes.
-        SetNuiFocus(true, placementCursorVisible)
-        SetNuiFocusKeepInput(false)
+        if placementCursorVisible then
+            SetNuiFocus(true, true)
+            SetNuiFocusKeepInput(false)
+        else
+            -- Release NUI focus completely so mouse-look and normal movement return.
+            SetNuiFocus(false, false)
+            SetNuiFocusKeepInput(false)
+        end
         SendNUIMessage({ type = 'PAM_OBJECT_PLACEMENT_CURSOR', visible = placementCursorVisible })
     end
 end
@@ -52,9 +59,9 @@ end
 local function setPlacementUi(visible, modelName)
     SendNUIMessage({ type = 'PAM_OBJECT_PLACEMENT', visible = visible, model = modelName or '' })
     if visible then
-        -- Start with the pointer enabled. Left Ctrl toggles pointer visibility
-        -- without releasing NUI keyboard focus or allowing game-camera input.
+        -- Start with the pointer enabled. Hiding it releases NUI focus for gameplay.
         placementCursorVisible = true
+        placementGizmoMode = 'move'
         SetNuiFocus(true, true)
         SetNuiFocusKeepInput(false)
         SendNUIMessage({ type = 'PAM_OBJECT_PLACEMENT_CURSOR', visible = true })
@@ -156,6 +163,30 @@ RegisterNetEvent('pam:client:objectPlacementControl', function(control, value)
     if control == 'toggleCursor' then
         setPlacementCursor(not placementCursorVisible)
         return
+    elseif control == 'dragAxis' then
+        if type(value) ~= 'table' then return end
+        local axis = value.axis
+        local steps = tonumber(value.steps)
+        local mode = value.mode == 'rotate' and 'rotate' or 'move'
+        if (axis ~= 'x' and axis ~= 'y' and axis ~= 'z') or not steps then return end
+        steps = math.max(-100, math.min(100, steps))
+        if mode == 'move' then
+            local delta = placementStep * steps
+            if axis == 'x' then placementOffset = placementOffset + vector3(delta, 0.0, 0.0)
+            elseif axis == 'y' then placementOffset = placementOffset + vector3(0.0, delta, 0.0)
+            else placementOffset = placementOffset + vector3(0.0, 0.0, delta) end
+        else
+            local delta = placementRotationStep * steps
+            if axis == 'x' then placementRotation = vector3(placementRotation.x + delta, placementRotation.y, placementRotation.z)
+            elseif axis == 'y' then placementRotation = vector3(placementRotation.x, placementRotation.y + delta, placementRotation.z)
+            else placementRotation = vector3(placementRotation.x, placementRotation.y, placementRotation.z + delta) end
+        end
+        sendPlacementState(true)
+        return
+    elseif control == 'gizmoMode' then
+        placementGizmoMode = value == 'rotate' and 'rotate' or 'move'
+        SendNUIMessage({ type = 'PAM_GIZMO_MODE', mode = placementGizmoMode })
+        return
     elseif control == 'step' then
         local requested = tonumber(value)
         if requested == 0.01 or requested == 0.05 or requested == 0.10 or requested == 0.25 or requested == 1.0 then
@@ -239,31 +270,41 @@ RegisterNetEvent('pam:client:startObjectPlacement', function(modelName, options)
     CreateThread(function()
         while placingObject do
             Wait(0)
-            DisablePlayerFiring(PlayerId(), true)
-            -- Explicitly suppress camera look axes during placement as a safety net.
-            DisableControlAction(0, 1, true) -- LookLeftRight
-            DisableControlAction(0, 2, true) -- LookUpDown
-            DisableControlAction(0, 24, true)
-            DisableControlAction(0, 25, true)
-            DisableControlAction(0, 200, true)
-            DisableControlAction(0, 177, true)
-            DisableControlAction(0, 38, true)
-            DisableControlAction(0, 172, true)
-            DisableControlAction(0, 173, true)
-            DisableControlAction(0, 174, true)
-            DisableControlAction(0, 175, true)
-            DisableControlAction(0, 14, true)
-            DisableControlAction(0, 15, true)
-            DisableControlAction(0, 30, true)
-            DisableControlAction(0, 31, true)
-            DisableControlAction(0, 32, true)
-            DisableControlAction(0, 33, true)
-            DisableControlAction(0, 34, true)
-            DisableControlAction(0, 35, true)
-
-            -- Keyboard input is handled by the focused NUI placement panel.
-            if IsDisabledControlJustPressed(0, 14) then placementDistance = math.max(1.0, placementDistance - 0.5) end
-            if IsDisabledControlJustPressed(0, 15) then placementDistance = math.min(20.0, placementDistance + 0.5) end
+            if placementCursorVisible then
+                -- NUI owns pointer and keyboard while visible; suppress game input.
+                DisablePlayerFiring(PlayerId(), true)
+                DisableControlAction(0, 1, true)
+                DisableControlAction(0, 2, true)
+                DisableControlAction(0, 24, true)
+                DisableControlAction(0, 25, true)
+                DisableControlAction(0, 200, true)
+                DisableControlAction(0, 177, true)
+                DisableControlAction(0, 38, true)
+                DisableControlAction(0, 172, true)
+                DisableControlAction(0, 173, true)
+                DisableControlAction(0, 174, true)
+                DisableControlAction(0, 175, true)
+                DisableControlAction(0, 14, true)
+                DisableControlAction(0, 15, true)
+                DisableControlAction(0, 30, true)
+                DisableControlAction(0, 31, true)
+                DisableControlAction(0, 32, true)
+                DisableControlAction(0, 33, true)
+                DisableControlAction(0, 34, true)
+                DisableControlAction(0, 35, true)
+            else
+                -- No NUI focus: let the player walk and freely rotate the camera.
+                DisableControlAction(0, 36, true)
+                DisableControlAction(0, 191, true)
+                DisableControlAction(0, 177, true)
+                DisableControlAction(0, 200, true)
+                if IsDisabledControlJustPressed(0, 36) then setPlacementCursor(true) end
+                if IsDisabledControlJustPressed(0, 191) then finishPlacement() end
+                if IsDisabledControlJustPressed(0, 177) or IsDisabledControlJustPressed(0, 200) then
+                    stopPlacement(true)
+                    objectNotify('Object placement cancelled.')
+                end
+            end
 
             if placementBaseCoords then
                 placementCoords = placementBaseCoords + placementOffset
@@ -274,14 +315,29 @@ RegisterNetEvent('pam:client:startObjectPlacement', function(modelName, options)
             end
             SetEntityCoordsNoOffset(previewObject, placementCoords.x, placementCoords.y, placementCoords.z, false, false, false)
             SetEntityRotation(previewObject, placementRotation.x, placementRotation.y, placementRotation.z, 2, true)
-            -- World-space XYZ gizmo axes around the preview pivot.
-            DrawLine(placementCoords.x, placementCoords.y, placementCoords.z, placementCoords.x + 0.85, placementCoords.y, placementCoords.z, 255, 85, 85, 230)
-            DrawLine(placementCoords.x, placementCoords.y, placementCoords.z, placementCoords.x, placementCoords.y + 0.85, placementCoords.z, 85, 230, 135, 230)
-            DrawLine(placementCoords.x, placementCoords.y, placementCoords.z, placementCoords.x, placementCoords.y, placementCoords.z + 0.85, 90, 155, 255, 230)
+                        -- Draw world-space axes and publish screen positions for mouse dragging.
+            local axisEnds = {
+                x = vector3(placementCoords.x + 0.85, placementCoords.y, placementCoords.z),
+                y = vector3(placementCoords.x, placementCoords.y + 0.85, placementCoords.z),
+                z = vector3(placementCoords.x, placementCoords.y, placementCoords.z + 0.85)
+            }
+            DrawLine(placementCoords.x, placementCoords.y, placementCoords.z, axisEnds.x.x, axisEnds.x.y, axisEnds.x.z, 255, 85, 85, 230)
+            DrawLine(placementCoords.x, placementCoords.y, placementCoords.z, axisEnds.y.x, axisEnds.y.y, axisEnds.y.z, 85, 230, 135, 230)
+            DrawLine(placementCoords.x, placementCoords.y, placementCoords.z, axisEnds.z.x, axisEnds.z.y, axisEnds.z.z, 90, 155, 255, 230)
             DrawMarker(28, placementCoords.x, placementCoords.y, placementCoords.z, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.055, 0.055, 0.055, 245, 245, 255, 220, false, false, 2, false, nil, nil, false)
+            if placementCursorVisible and GetGameTimer() - lastAxisUiUpdate > 40 then
+                lastAxisUiUpdate = GetGameTimer()
+                local axes = {}
+                for axis, endpoint in pairs(axisEnds) do
+                    local ok1, x1, y1 = GetScreenCoordFromWorldCoord(placementCoords.x, placementCoords.y, placementCoords.z)
+                    local ok2, x2, y2 = GetScreenCoordFromWorldCoord(endpoint.x, endpoint.y, endpoint.z)
+                    if ok1 and ok2 then axes[axis] = { x1=x1, y1=y1, x2=x2, y2=y2 } end
+                end
+                SendNUIMessage({ type='PAM_GIZMO_AXES', axes=axes, mode=placementGizmoMode })
+            end
             sendPlacementState(false)
 
-            if IsDisabledControlJustPressed(0, 177) or IsDisabledControlJustPressed(0, 200) then
+            if placementCursorVisible and (IsDisabledControlJustPressed(0, 177) or IsDisabledControlJustPressed(0, 200)) then
                 stopPlacement(true)
                 objectNotify('Object placement cancelled.')
             end
