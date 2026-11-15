@@ -87,6 +87,7 @@ RegisterNetEvent('pam:server:managedPropRegister', function(netId, model, persis
     end
     local owner = NetworkGetEntityOwner(entity)
     if owner ~= src then return notify(src, 'The server could not verify ownership of this placed prop.', false) end
+    SetEntityOrphanMode(entity, 2)
     local p = GetEntityCoords(GetPlayerPed(src))
     local c = GetEntityCoords(entity)
     if #(p - c) > 60.0 then return notify(src, 'The prop is too far away to register.', false) end
