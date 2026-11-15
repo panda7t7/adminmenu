@@ -1,5 +1,12 @@
 ManagedObjects = { Temporary = {}, Ready = false }
 
+local function decodeJson(value)
+    if type(value) == 'table' then return value end
+    if type(value) ~= 'string' then return {} end
+    local ok, decoded = pcall(json.decode, value)
+    return ok and type(decoded) == 'table' and decoded or {}
+end
+
 local function canManage(src)
     return Permissions and Permissions.IsStaff(src) and Permissions.Has(src, 'entities.manage')
 end
@@ -9,9 +16,9 @@ local function notify(src, message, success)
 end
 
 local function spawnStored(row)
-    local ok, coords = pcall(json.decode, row.coords or '{}')
-    local okRot, rotation = pcall(json.decode, row.rotation or '{}')
-    if not ok or type(coords) ~= 'table' or not okRot or type(rotation) ~= 'table' then
+    local coords = decodeJson(row.coords)
+    local rotation = decodeJson(row.rotation)
+    if not next(coords) or not next(rotation) then
         print(('^1[PAM] Skipping malformed persistent prop #%s.^7'):format(row.id))
         return
     end
@@ -37,8 +44,8 @@ local function listFor(src)
     end)
     if ok and type(persistent) == 'table' then
         for _, row in ipairs(persistent) do
-            local c = json.decode(row.coords or '{}') or {}
-            local r = json.decode(row.rotation or '{}') or {}
+            local c = decodeJson(row.coords)
+            local r = decodeJson(row.rotation)
             local restored = ManagedObjects.Restored and ManagedObjects.Restored[tonumber(row.id)]
             rows[#rows + 1] = { id = tonumber(row.id), netId = restored and restored.netId or nil, model = row.model, coords = c, rotation = r, persistence = 'persistent', createdBy = row.created_by, createdAt = row.created_at }
         end
@@ -63,7 +70,7 @@ RegisterNetEvent('pam:server:managedPropEditStart', function(id)
         local rows=MySQL.query.await('SELECT id, model, coords, rotation FROM pam_managed_props WHERE id = ?', {numeric})
         local stored=rows and rows[1]
         local restored=ManagedObjects.Restored and ManagedObjects.Restored[numeric]
-        if stored then row={id=numeric,model=stored.model,coords=json.decode(stored.coords or '{}') or {},rotation=json.decode(stored.rotation or '{}') or {},netId=restored and restored.netId} end
+        if stored then row={id=numeric,model=stored.model,coords=decodeJson(stored.coords),rotation=decodeJson(stored.rotation),netId=restored and restored.netId} end
     end
     if not row then return notify(src,'Managed prop not found.',false) end
     TriggerClientEvent('pam:client:editManagedProp',src,{id=id,model=row.model,coords=row.coords,rotation=row.rotation,netId=row.netId})
