@@ -5,7 +5,7 @@
   const title = document.getElementById('page-title');
   const breadcrumb = document.getElementById('breadcrumb');
   const resource = (typeof GetParentResourceName === 'function') ? GetParentResourceName() : 'power_admin_menu';
-  const state = { data: null, page: 'overview', subview: 'list', frozen: new Set(), search: '', pageIndex: 0, dossier: null, catalogs: {vehicles:[],items:[],jobs:[]}, catalogSearch:'', catalogCategory:'all', selectedItem:'' };
+  const state = { data: null, page: 'overview', subview: 'list', frozen: new Set(), search: '', pageIndex: 0, dossier: null, catalogs: {vehicles:[],items:[],jobs:[]}, catalogSearch:'', catalogCategory:'all', selectedItem:'', managedProps:[] };
   const pageNames = { overview: 'Command Center', players: 'Player Management', bans: 'Active Bans', vehicles:'Vehicle Catalog', items:'Item Management', jobs:'Job Management', world: 'World Control', security: 'Security Center', system: 'System Overview', developer: 'Developer Tools' };
 
   async function nui(name, payload = {}) {
@@ -185,19 +185,36 @@
     if(kind==='jobs') {const create=document.getElementById('create-job');if(create)create.onclick=()=>{const payload={action:'job.create',name:document.getElementById('new-job-name').value.trim(),label:document.getElementById('new-job-label').value.trim(),type:document.getElementById('new-job-type').value.trim()||'none',defaultDuty:document.getElementById('new-job-duty').value==='true',offDutyPay:document.getElementById('new-job-offduty').value==='true',grades:{}};try{payload.grades=JSON.parse(document.getElementById('new-job-grades').value)}catch(e){toast('Grades must be valid JSON.',true);return}if(!payload.name||!payload.label||!payload.grades||typeof payload.grades!=='object'){toast('Job name, label and grade definitions are required.',true);return}sendAction(payload)}}
   }
 
+  function renderManagedProps() {
+    const rows = Array.isArray(state.managedProps) ? state.managedProps : [];
+    const makeGroup = (kind, title, description) => {
+      const group = rows.filter(row => row.persistence === kind);
+      return `<section class="page-panel" style="margin-top:14px"><div class="section-heading"><div><div class="eyebrow">${kind.toUpperCase()} PROPS</div><h3>${title}</h3><p class="muted">${description}</p></div><span class="subtle-label">${group.length} PLACED</span></div>${group.length ? '<div class="permission-list">'+group.map(row=>{const c=row.coords||{},r=row.rotation||{};return `<div class="permission-item" style="display:block"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><span><b>${escapeHtml(row.model)}</b><small class="muted"> · #${escapeHtml(row.id)}</small></span><span class="subtle-label">${kind.toUpperCase()}</span></div><small class="muted">XYZ: ${[c.x,c.y,c.z].map(v=>Number(v||0).toFixed(2)).join(', ')} · ROT: ${[r.x,r.y,r.z].map(v=>Number(v||0).toFixed(1)).join(', ')}</small><div class="player-actions" style="margin-top:8px"><button class="mini-action" data-prop-edit="${escapeHtml(row.id)}">EDIT WITH GIZMO</button><button class="mini-action" data-prop-delete="${escapeHtml(row.id)}">DELETE FROM WORLD</button></div></div>`}).join('')+'</div>' : '<p class="muted">No '+kind+' props have been placed.</p>'}</section>`;
+    };
+    const host = document.getElementById('pam-managed-props');
+    if (!host) return;
+    host.innerHTML = makeGroup('persistent','Persistent Props','Saved to the database and restored at the same position after a server restart.') + makeGroup('temporary','Temporary Props','Tracked only for this server session and removed when the resource/server stops.');
+    host.querySelectorAll('[data-prop-edit]').forEach(button => button.onclick = () => nui('managedPropEdit',{id:button.dataset.propEdit}));
+    host.querySelectorAll('[data-prop-delete]').forEach(button => button.onclick = () => nui('managedPropDelete',{id:button.dataset.propDelete}).then(()=>setTimeout(()=>nui('managedPropsList'),300)));
+  }
+
   function renderDeveloperTools() {
     content.innerHTML = `
       <div class="welcome-row"><div><div class="eyebrow">DEVELOPER WORKSPACE</div><h2>Developer <span>tools.</span></h2><p>Utilities for building, testing and positioning resources in your world.</p></div><div class="date-chip">STAFF UTILITY</div></div>
       <div class="section-heading"><div><div class="eyebrow">WORLD INSPECTION</div><h3>Coordinate tools</h3></div><span class="subtle-label">LIVE UTILITIES</span></div>
       <div class="quick-grid">
         <button class="quick-card" id="open-coords-tool" type="button"><span class="quick-icon cyan">⌖</span><strong>Coords</strong><small>Open the live coordinate panel while keeping player movement enabled</small><span class="card-arrow">↗</span></button>
-        ${can('entities.spawn') ? '<button class="quick-card" id="open-object-spawner" type="button"><span class="quick-icon violet">▦</span><strong>Spawn Object</strong><small>Choose a prop model and place it precisely in the world with a live preview</small><span class="card-arrow">↗</span></button>' : ''}
+        ${can('entities.spawn') ? '<button class="quick-card" id="open-object-spawner" type="button"><span class="quick-icon violet">▦</span><strong>Spawn Object</strong><small>Choose a prop model, select persistent or temporary, and place with the gizmo</small><span class="card-arrow">↗</span></button>' : ''}
       </div>
-      <p class="muted" style="margin-top:14px">Coords: use the arrow keys to select a format, Enter to copy, and Escape to close. Object placement: aim at a surface, use the arrow keys to rotate, scroll to adjust distance, E to place or Backspace to cancel.</p>`;
+      ${can('entities.manage') ? '<div class="section-heading" style="margin-top:22px"><div><div class="eyebrow">WORLD BUILDER</div><h3>Placed props</h3></div><button id="pam-props-refresh" class="action-button">↻ REFRESH LIST</button></div><div id="pam-managed-props"><p class="muted">Loading placed props…</p></div>' : ''}
+      <p class="muted" style="margin-top:14px">Persistent props are saved in MySQL and restored after restarts. Temporary props exist only for the current session. Admins with prop management permission can edit either type using the same placement gizmo or delete them.</p>`;
     const button = document.getElementById('open-coords-tool');
     if (button) button.addEventListener('click', async () => { await nui('vector'); });
     const objectButton = document.getElementById('open-object-spawner');
     if (objectButton) objectButton.addEventListener('click', openObjectSpawner);
+    const refresh = document.getElementById('pam-props-refresh');
+    if (refresh) refresh.onclick = () => nui('managedPropsList');
+    if (can('entities.manage')) nui('managedPropsList');
   }
 
   let objectCatalogPromise = null;
@@ -242,7 +259,7 @@
       <h3>Spawn <span>object.</span></h3>
       <p class="muted">Browse the GTA V object catalogue, preview prop pictures, or enter a custom/add-on model name. Select a model to begin precise placement.</p>
       <label class="object-model-label" for="pam-object-model">OBJECT MODEL NAME</label>
-      <div class="object-model-entry"><input id="pam-object-model" class="search-input" maxlength="64" autocomplete="off" spellcheck="false" placeholder="e.g. prop_toolchest_05"><button id="pam-object-start" class="action-button primary" type="button">PLACE</button></div>
+      <div class="object-model-entry"><input id="pam-object-model" class="search-input" maxlength="64" autocomplete="off" spellcheck="false" placeholder="e.g. prop_toolchest_05"><button id="pam-object-start" class="action-button primary" type="button">PLACE</button></div><label class="object-model-label" for="pam-object-persistence">PROP LIFETIME</label><select id="pam-object-persistence" class="search-input"><option value="persistent">Persistent · restore after server restart</option><option value="temporary" selected>Temporary · remove on server restart</option></select>
       <div class="object-selected-preview" id="pam-object-selected"><div class="object-preview-empty">Select a prop from the catalogue</div></div>
       <div class="object-catalog-toolbar"><input id="pam-object-search" class="search-input" placeholder="Search 21,631 models by name or hash..."><select id="pam-object-group" class="search-input"><option value="all">All model groups</option><option value="props">Props</option><option value="interior">Interior</option><option value="mission">Mission</option><option value="world">World & DLC</option><option value="helper">LOD & helper</option></select></div>
       <div class="object-catalog-status" id="pam-object-status">Loading GTA V prop catalogue…</div>
@@ -307,7 +324,8 @@
     async function start() {
       const model = input.value.trim();
       if (!/^[a-zA-Z0-9_]{3,64}$/.test(model)) { toast('Enter a valid model name (letters, numbers and underscores).', true); input.focus(); return; }
-      const result = await nui('spawnObject', { model });
+      const persistence = document.getElementById('pam-object-persistence').value;
+      const result = await nui('spawnObject', { model, persistence });
       if (result && result.success) overlay.remove();
     }
 
@@ -506,6 +524,7 @@
       renderOverview();
       if (state.page !== 'overview') navigate(state.page);
     }
+    if (message.type === 'PAM_MANAGED_PROPS') { state.managedProps = message.payload || []; renderManagedProps(); }
     if (message.type === 'PAM_CATALOG') { if(['vehicles','items','jobs'].includes(message.kind)){state.catalogs[message.kind]=message.payload||[];if(state.page===message.kind)renderCatalog(message.kind);} }
     if (message.type === 'PAM_PLAYER_LIST') { if(state.data) state.data.players=message.payload||[]; if(state.page==='players') renderPlayers(); else if(state.page==='vehicles') renderCatalog('vehicles'); }
     if (message.type === 'PAM_PLAYER_DOSSIER') renderDossier(message.payload||{});
