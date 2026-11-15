@@ -9,7 +9,7 @@ PAM.Events = {
     SpectateStart = 'pam:client:spectateStart', SpectateStop = 'pam:client:spectateStop'
 }
 PAM.Permissions = {
-    'dashboard.view','entities.delete','entities.spawn','players.view','players.teleport','players.bring','players.freeze','players.heal','players.kick','players.ban',
+    'dashboard.view','entities.delete','entities.spawn','entities.manage','players.view','players.teleport','players.bring','players.freeze','players.heal','players.kick','players.ban',
     'world.view','world.weather','world.time','vehicles.view','vehicles.spawn','vehicles.give','staff.view','audit.view','resources.view',
     'players.dossier','players.identifiers','players.inventory','players.money.view','players.money.modify',
     'items.view','items.give','items.create','jobs.view','jobs.create',
