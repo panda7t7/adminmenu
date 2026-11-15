@@ -299,10 +299,14 @@ RegisterNetEvent('pam:client:startObjectPlacement', function(modelName, options)
                 DisableControlAction(0, 177, true)
                 DisableControlAction(0, 200, true)
                 if IsDisabledControlJustPressed(0, 36) then setPlacementCursor(true) end
-                if IsDisabledControlJustPressed(0, 191) then finishPlacement() end
+                if IsDisabledControlJustPressed(0, 191) then
+                    finishPlacement()
+                    break
+                end
                 if IsDisabledControlJustPressed(0, 177) or IsDisabledControlJustPressed(0, 200) then
                     stopPlacement(true)
                     objectNotify('Object placement cancelled.')
+                    break
                 end
             end
 
