@@ -39,7 +39,8 @@ local function listFor(src)
         for _, row in ipairs(persistent) do
             local c = json.decode(row.coords or '{}') or {}
             local r = json.decode(row.rotation or '{}') or {}
-            rows[#rows + 1] = { id = tonumber(row.id), model = row.model, coords = c, rotation = r, persistence = 'persistent', createdBy = row.created_by, createdAt = row.created_at }
+            local restored = ManagedObjects.Restored and ManagedObjects.Restored[tonumber(row.id)]
+            rows[#rows + 1] = { id = tonumber(row.id), netId = restored and restored.netId or nil, model = row.model, coords = c, rotation = r, persistence = 'persistent', createdBy = row.created_by, createdAt = row.created_at }
         end
     end
     for id, row in pairs(ManagedObjects.Temporary) do
@@ -47,6 +48,26 @@ local function listFor(src)
     end
     return rows
 end
+
+
+RegisterNetEvent('pam:server:managedPropEditStart', function(id)
+    local src=source
+    if not canManage(src) then return end
+    local key=tostring(id or '')
+    local isTemp=key:sub(1,5)=='temp:'
+    local numeric=tonumber(isTemp and key:sub(6) or key)
+    if not numeric then return end
+    local row
+    if isTemp then row=ManagedObjects.Temporary[numeric]
+    else
+        local rows=MySQL.query.await('SELECT id, model, coords, rotation FROM pam_managed_props WHERE id = ?', {numeric})
+        local stored=rows and rows[1]
+        local restored=ManagedObjects.Restored and ManagedObjects.Restored[numeric]
+        if stored then row={id=numeric,model=stored.model,coords=json.decode(stored.coords or '{}') or {},rotation=json.decode(stored.rotation or '{}') or {},netId=restored and restored.netId} end
+    end
+    if not row then return notify(src,'Managed prop not found.',false) end
+    TriggerClientEvent('pam:client:editManagedProp',src,{id=id,model=row.model,coords=row.coords,rotation=row.rotation,netId=row.netId})
+end)
 
 RegisterNetEvent('pam:server:managedPropsList', function()
     local src = source
