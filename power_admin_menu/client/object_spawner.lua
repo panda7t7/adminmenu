@@ -11,6 +11,9 @@ local placementDistance = 6.0
 local modelMin = vector3(0.0, 0.0, 0.0)
 local lastUiUpdate = 0
 local placementCursorVisible = true
+local placementOptions = {}
+local placementBaseCoords = nil
+local placementModelName = nil
 
 local function setPlacementCursor(visible)
     placementCursorVisible = visible == true
@@ -92,6 +95,8 @@ local function finishPlacement()
     if not placementCoords or previewModel == 0 then return end
     local coords, model = placementCoords, previewModel
     local rotation = placementRotation
+    local options = placementOptions or {}
+    local modelName = placementModelName
     placingObject = false
     if previewObject ~= 0 and DoesEntityExist(previewObject) then
         SetEntityAsMissionEntity(previewObject, true, true)
@@ -99,6 +104,12 @@ local function finishPlacement()
     end
     previewObject, previewModel, placementCoords, surfaceCoords = 0, 0, nil, nil
     setPlacementUi(false)
+    if options.editId then
+        TriggerServerEvent('pam:server:managedPropEdit', options.editId, {x=coords.x,y=coords.y,z=coords.z}, {x=rotation.x,y=rotation.y,z=rotation.z})
+        SetModelAsNoLongerNeeded(model)
+        placementOptions, placementBaseCoords, placementModelName = {}, nil, nil
+        return
+    end
 
     local object = CreateObjectNoOffset(model, coords.x, coords.y, coords.z, true, true, false)
     if object == 0 or not DoesEntityExist(object) or GetEntityType(object) ~= 3 then
@@ -120,6 +131,8 @@ local function finishPlacement()
         SetNetworkIdCanMigrate(netId, true)
     end
     SetModelAsNoLongerNeeded(model)
+    if netId and netId ~= 0 then TriggerServerEvent('pam:server:managedPropRegister', netId, modelName, options.persistence or 'temporary') end
+    placementOptions, placementBaseCoords, placementModelName = {}, nil, nil
     objectNotify(('Object placed successfully%s'):format(netId and netId ~= 0 and (' (Net ID: ' .. netId .. ')') or ''))
 end
 
@@ -156,8 +169,11 @@ RegisterNetEvent('pam:client:objectPlacementControl', function(control, value)
     sendPlacementState(true)
 end)
 
-RegisterNetEvent('pam:client:startObjectPlacement', function(modelName)
+RegisterNetEvent('pam:client:startObjectPlacement', function(modelName, options)
     if placingObject then stopPlacement(true) end
+    options = type(options) == 'table' and options or {}
+    placementOptions = options
+    placementModelName = modelName
     if type(modelName) ~= 'string' or modelName == '' then return end
     local hash = joaat(modelName)
     -- IsModelAnObject is not a FiveM client native. Validate the model generically,
@@ -184,7 +200,9 @@ RegisterNetEvent('pam:client:startObjectPlacement', function(modelName)
     placementStep = 0.10
     placementRotationStep = 5.0
     placementDistance = 6.0
-    local initial = playerCoords + forward * placementDistance
+    local initial = options.coords and vector3(tonumber(options.coords.x) or playerCoords.x, tonumber(options.coords.y) or playerCoords.y, tonumber(options.coords.z) or playerCoords.z) or (playerCoords + forward * placementDistance)
+    if options.rotation then placementRotation = vector3(tonumber(options.rotation.x) or 0.0, tonumber(options.rotation.y) or 0.0, tonumber(options.rotation.z) or placementRotation.z) end
+    placementBaseCoords = options.editId and initial or nil
     previewObject = CreateObjectNoOffset(hash, initial.x, initial.y, initial.z, false, false, false)
     if previewObject == 0 or not DoesEntityExist(previewObject) or GetEntityType(previewObject) ~= 3 then
         if previewObject ~= 0 and DoesEntityExist(previewObject) then DeleteEntity(previewObject) end
@@ -233,9 +251,13 @@ RegisterNetEvent('pam:client:startObjectPlacement', function(modelName)
             if IsDisabledControlJustPressed(0, 14) then placementDistance = math.max(1.0, placementDistance - 0.5) end
             if IsDisabledControlJustPressed(0, 15) then placementDistance = math.min(20.0, placementDistance + 0.5) end
 
-            local hitPoint = getPlacementPoint(placementDistance)
-            surfaceCoords = vector3(hitPoint.x, hitPoint.y, hitPoint.z - modelMin.z + 0.015)
-            placementCoords = surfaceCoords + placementOffset
+            if placementBaseCoords then
+                placementCoords = placementBaseCoords + placementOffset
+            else
+                local hitPoint = getPlacementPoint(placementDistance)
+                surfaceCoords = vector3(hitPoint.x, hitPoint.y, hitPoint.z - modelMin.z + 0.015)
+                placementCoords = surfaceCoords + placementOffset
+            end
             SetEntityCoordsNoOffset(previewObject, placementCoords.x, placementCoords.y, placementCoords.z, false, false, false)
             SetEntityRotation(previewObject, placementRotation.x, placementRotation.y, placementRotation.z, 2, true)
             -- World-space XYZ gizmo axes around the preview pivot.
@@ -254,5 +276,18 @@ RegisterNetEvent('pam:client:startObjectPlacement', function(modelName)
 end)
 
 AddEventHandler('onResourceStop', function(resource)
-    if resource == GetCurrentResourceName() and placingObject then stopPlacement(true) end
+    if resource == GetCurrentResourceName() and placingObject then stopPlacement(true); placementOptions, placementBaseCoords, placementModelName = {}, nil, nil end
+end)
+
+RegisterNetEvent('pam:client:editManagedProp', function(row)
+    if type(row) ~= 'table' or type(row.model) ~= 'string' then return end
+    TriggerEvent('pam:client:startObjectPlacement', row.model, { editId=row.id, coords=row.coords, rotation=row.rotation })
+end)
+
+RegisterNetEvent('pam:client:managedPropsList', function(rows)
+    SendNUIMessage({ type='PAM_MANAGED_PROPS', payload=rows or {} })
+end)
+
+RegisterNetEvent('pam:client:managedObjectNotice', function(message, success)
+    objectNotify(message, not success)
 end)
