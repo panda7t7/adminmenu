@@ -576,6 +576,11 @@
       const panel = ensureObjectPlacementPanel();
       panel.classList.toggle('hidden', !message.visible);
       if (message.model) panel.querySelector('#pam-place-model').textContent = message.model;
+      if (!message.visible) {
+        const overlay = document.getElementById('pam-gizmo-overlay');
+        if (overlay && overlay._setCursor) overlay._setCursor(false);
+        if (overlay && overlay._setAxes) overlay._setAxes({});
+      }
     }
     if (message.type === 'PAM_OBJECT_PLACEMENT_CURSOR') {
       const cursorState = document.getElementById('pam-place-cursor-state');
