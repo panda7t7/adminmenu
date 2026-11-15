@@ -5,7 +5,7 @@ lua54 'yes'
 name 'power_admin_menu'
 author 'Power Admin Menu'
 description 'Modular, multi-framework FiveM administration system'
-version '1.6.3-object-placer-cursor-toggle'
+version '1.6.4-managed-props'
 
 ui_page 'html/index.html'
 
