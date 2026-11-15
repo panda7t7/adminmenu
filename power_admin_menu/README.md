@@ -284,3 +284,21 @@ The Developer Tools page includes a Spawn Object utility for staff with the `ent
 The Spawn Object browser can load the public FiveM object-name catalogue from FAM Tools (`https://fam-tools.com/data/props.json`) and displays reference thumbnails where available (`https://fam-tools.com/props-3d/thumb/`). The catalogue includes 21,631 createable object model names across props, interiors, mission, world/DLC and helper groups. The catalogue is loaded lazily in the NUI and filtered locally; only the first 72 matching entries are rendered at a time.
 
 **Network note:** the in-menu catalogue and remote thumbnails require the player's NUI browser to have internet access. If the catalogue cannot be reached, staff can still enter a GTA or streamed add-on model name manually. The image references are community reference thumbnails, not bundled Rockstar game assets. Data credit: [FAM Tools GTA 5 createable object models](https://fam-tools.com/props).
+
+
+## Developer Tools: Persistent and Temporary Props
+
+Open Developer Tools → Spawn Object, choose a model, then select its lifetime before placing it with the existing transform gizmo:
+
+- **Persistent** — saved in the pam_managed_props table and recreated at the saved coordinates and rotation after the resource/server restarts.
+- **Temporary** — tracked in server memory for the current session only and removed when the resource/server stops or restarts.
+
+The **Placed Props** area is split into **Persistent Props** and **Temporary Props**. It shows each managed model, ID, position and rotation. Staff with entities.manage can refresh the list, edit a prop with the same gizmo, or delete it. Deleting a persistent prop removes its database row as well as its managed world entity, so it will not return at the next restart. Temporary props remain until deleted or the server/resource session ends.
+
+### SQL migration for existing installations
+
+Back up your database, then import sql/managed_props.sql once. Fresh installations also receive the table automatically from the updated sql/install.sql. Do not drop the existing Power Admin tables.
+
+Grant both entities.spawn and entities.manage to staff who should place props. The default owner, headadmin and admin roles include these permissions. Custom roles must be granted both permissions (or the equivalent ACE permissions poweradmin.entities.spawn and poweradmin.entities.manage).
+
+**Scope and safety:** the manager only lists and deletes props registered by this feature. It does not enumerate or delete unrelated map props or entities spawned by other resources. Persistent restoration requires the configured oxmysql database to be available when Power Admin starts. Test on a staging server with OneSync enabled before production use.

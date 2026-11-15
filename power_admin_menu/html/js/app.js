@@ -5,7 +5,7 @@
   const title = document.getElementById('page-title');
   const breadcrumb = document.getElementById('breadcrumb');
   const resource = (typeof GetParentResourceName === 'function') ? GetParentResourceName() : 'power_admin_menu';
-  const state = { data: null, page: 'overview', subview: 'list', frozen: new Set(), search: '', pageIndex: 0, dossier: null, catalogs: {vehicles:[],items:[],jobs:[]}, catalogSearch:'', catalogCategory:'all', selectedItem:'' };
+  const state = { data: null, page: 'overview', subview: 'list', frozen: new Set(), search: '', pageIndex: 0, dossier: null, catalogs: {vehicles:[],items:[],jobs:[]}, catalogSearch:'', catalogCategory:'all', selectedItem:'', managedProps:[] };
   const pageNames = { overview: 'Command Center', players: 'Player Management', bans: 'Active Bans', vehicles:'Vehicle Catalog', items:'Item Management', jobs:'Job Management', world: 'World Control', security: 'Security Center', system: 'System Overview', developer: 'Developer Tools' };
 
   async function nui(name, payload = {}) {
@@ -185,19 +185,36 @@
     if(kind==='jobs') {const create=document.getElementById('create-job');if(create)create.onclick=()=>{const payload={action:'job.create',name:document.getElementById('new-job-name').value.trim(),label:document.getElementById('new-job-label').value.trim(),type:document.getElementById('new-job-type').value.trim()||'none',defaultDuty:document.getElementById('new-job-duty').value==='true',offDutyPay:document.getElementById('new-job-offduty').value==='true',grades:{}};try{payload.grades=JSON.parse(document.getElementById('new-job-grades').value)}catch(e){toast('Grades must be valid JSON.',true);return}if(!payload.name||!payload.label||!payload.grades||typeof payload.grades!=='object'){toast('Job name, label and grade definitions are required.',true);return}sendAction(payload)}}
   }
 
+  function renderManagedProps() {
+    const rows = Array.isArray(state.managedProps) ? state.managedProps : [];
+    const makeGroup = (kind, title, description) => {
+      const group = rows.filter(row => row.persistence === kind);
+      return `<section class="page-panel" style="margin-top:14px"><div class="section-heading"><div><div class="eyebrow">${kind.toUpperCase()} PROPS</div><h3>${title}</h3><p class="muted">${description}</p></div><span class="subtle-label">${group.length} PLACED</span></div>${group.length ? '<div class="permission-list">'+group.map(row=>{const c=row.coords||{},r=row.rotation||{};return `<div class="permission-item" style="display:block"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><span><b>${escapeHtml(row.model)}</b><small class="muted"> · #${escapeHtml(row.id)}</small></span><span class="subtle-label">${kind.toUpperCase()}</span></div><small class="muted">XYZ: ${[c.x,c.y,c.z].map(v=>Number(v||0).toFixed(2)).join(', ')} · ROT: ${[r.x,r.y,r.z].map(v=>Number(v||0).toFixed(1)).join(', ')}</small><div class="player-actions" style="margin-top:8px"><button class="mini-action" data-prop-edit="${escapeHtml(row.id)}" ${row.netId ? "" : "disabled"}>EDIT WITH GIZMO</button><button class="mini-action" data-prop-delete="${escapeHtml(row.id)}">DELETE FROM WORLD</button></div></div>`}).join('')+'</div>' : '<p class="muted">No '+kind+' props have been placed.</p>'}</section>`;
+    };
+    const host = document.getElementById('pam-managed-props');
+    if (!host) return;
+    host.innerHTML = makeGroup('persistent','Persistent Props','Saved to the database and restored at the same position after a server restart.') + makeGroup('temporary','Temporary Props','Tracked only for this server session and removed when the resource/server stops.');
+    host.querySelectorAll('[data-prop-edit]').forEach(button => button.onclick = () => nui('managedPropEdit',{id:button.dataset.propEdit}));
+    host.querySelectorAll('[data-prop-delete]').forEach(button => button.onclick = () => nui('managedPropDelete',{id:button.dataset.propDelete}).then(()=>setTimeout(()=>nui('managedPropsList'),300)));
+  }
+
   function renderDeveloperTools() {
     content.innerHTML = `
       <div class="welcome-row"><div><div class="eyebrow">DEVELOPER WORKSPACE</div><h2>Developer <span>tools.</span></h2><p>Utilities for building, testing and positioning resources in your world.</p></div><div class="date-chip">STAFF UTILITY</div></div>
       <div class="section-heading"><div><div class="eyebrow">WORLD INSPECTION</div><h3>Coordinate tools</h3></div><span class="subtle-label">LIVE UTILITIES</span></div>
       <div class="quick-grid">
         <button class="quick-card" id="open-coords-tool" type="button"><span class="quick-icon cyan">⌖</span><strong>Coords</strong><small>Open the live coordinate panel while keeping player movement enabled</small><span class="card-arrow">↗</span></button>
-        ${can('entities.spawn') ? '<button class="quick-card" id="open-object-spawner" type="button"><span class="quick-icon violet">▦</span><strong>Spawn Object</strong><small>Choose a prop model and place it precisely in the world with a live preview</small><span class="card-arrow">↗</span></button>' : ''}
+        ${can('entities.spawn') && can('entities.manage') ? '<button class="quick-card" id="open-object-spawner" type="button"><span class="quick-icon violet">▦</span><strong>Spawn Object</strong><small>Choose a prop model, select persistent or temporary, and place with the gizmo</small><span class="card-arrow">↗</span></button>' : ''}
       </div>
-      <p class="muted" style="margin-top:14px">Coords: use the arrow keys to select a format, Enter to copy, and Escape to close. Object placement: aim at a surface, use the arrow keys to rotate, scroll to adjust distance, E to place or Backspace to cancel.</p>`;
+      ${can('entities.manage') ? '<div class="section-heading" style="margin-top:22px"><div><div class="eyebrow">WORLD BUILDER</div><h3>Placed props</h3></div><button id="pam-props-refresh" class="action-button">↻ REFRESH LIST</button></div><div id="pam-managed-props"><p class="muted">Loading placed props…</p></div>' : ''}
+      <p class="muted" style="margin-top:14px">Persistent props are saved in MySQL and restored after restarts. Temporary props exist only for the current session. Admins with prop management permission can edit either type using the same placement gizmo or delete them.</p>`;
     const button = document.getElementById('open-coords-tool');
     if (button) button.addEventListener('click', async () => { await nui('vector'); });
     const objectButton = document.getElementById('open-object-spawner');
     if (objectButton) objectButton.addEventListener('click', openObjectSpawner);
+    const refresh = document.getElementById('pam-props-refresh');
+    if (refresh) refresh.onclick = () => nui('managedPropsList');
+    if (can('entities.manage')) nui('managedPropsList');
   }
 
   let objectCatalogPromise = null;
@@ -242,7 +259,7 @@
       <h3>Spawn <span>object.</span></h3>
       <p class="muted">Browse the GTA V object catalogue, preview prop pictures, or enter a custom/add-on model name. Select a model to begin precise placement.</p>
       <label class="object-model-label" for="pam-object-model">OBJECT MODEL NAME</label>
-      <div class="object-model-entry"><input id="pam-object-model" class="search-input" maxlength="64" autocomplete="off" spellcheck="false" placeholder="e.g. prop_toolchest_05"><button id="pam-object-start" class="action-button primary" type="button">PLACE</button></div>
+      <div class="object-model-entry"><input id="pam-object-model" class="search-input" maxlength="64" autocomplete="off" spellcheck="false" placeholder="e.g. prop_toolchest_05"><button id="pam-object-start" class="action-button primary" type="button">PLACE</button></div><label class="object-model-label" for="pam-object-persistence">PROP LIFETIME</label><select id="pam-object-persistence" class="search-input"><option value="persistent">Persistent · restore after server restart</option><option value="temporary" selected>Temporary · remove on server restart</option></select>
       <div class="object-selected-preview" id="pam-object-selected"><div class="object-preview-empty">Select a prop from the catalogue</div></div>
       <div class="object-catalog-toolbar"><input id="pam-object-search" class="search-input" placeholder="Search 21,631 models by name or hash..."><select id="pam-object-group" class="search-input"><option value="all">All model groups</option><option value="props">Props</option><option value="interior">Interior</option><option value="mission">Mission</option><option value="world">World & DLC</option><option value="helper">LOD & helper</option></select></div>
       <div class="object-catalog-status" id="pam-object-status">Loading GTA V prop catalogue…</div>
@@ -307,7 +324,8 @@
     async function start() {
       const model = input.value.trim();
       if (!/^[a-zA-Z0-9_]{3,64}$/.test(model)) { toast('Enter a valid model name (letters, numbers and underscores).', true); input.focus(); return; }
-      const result = await nui('spawnObject', { model });
+      const persistence = document.getElementById('pam-object-persistence').value;
+      const result = await nui('spawnObject', { model, persistence });
       if (result && result.success) overlay.remove();
     }
 
@@ -448,6 +466,7 @@
       <div class="pam-place-cursor-state" id="pam-place-cursor-state">MOUSE CURSOR: ON · LEFT CTRL TO HIDE</div>
       <div class="pam-place-coords"><span>X POSITION<b id="pam-place-x">0.000</b></span><span>Y POSITION<b id="pam-place-y">0.000</b></span><span>Z POSITION<b id="pam-place-z">0.000</b></span></div>
       <div class="pam-place-coords"><span>ROT X<b id="pam-place-rx">0.0°</b></span><span>ROT Y<b id="pam-place-ry">0.0°</b></span><span>ROT Z<b id="pam-place-rz">0.0°</b></span></div>
+      <div class="pam-gizmo-section"><div class="pam-gizmo-title"><span>AXIS INTERACTION MODE</span><span>DRAG IN WORLD</span></div><div class="pam-gizmo-row"><button data-gizmo-mode="move" class="pam-gizmo-mode active">↔ MOVE AXES</button><button data-gizmo-mode="rotate" class="pam-gizmo-mode">⟳ ROTATE AXES</button></div></div>
       <div class="pam-gizmo-section"><div class="pam-gizmo-title"><span>MOVE · WORLD AXES</span><span>± STEP</span></div>
         <div class="pam-gizmo-row"><b class="pam-gizmo-axis x">X</b><button data-place="moveX" data-value="-1">− X</button><button data-place="moveX" data-value="1">+ X</button><button data-place="resetOffset">RESET</button></div>
         <div class="pam-gizmo-row"><b class="pam-gizmo-axis y">Y</b><button data-place="moveY" data-value="-1">− Y</button><button data-place="moveY" data-value="1">+ Y</button><span></span></div>
@@ -461,9 +480,86 @@
       <div class="pam-gizmo-section"><div class="pam-gizmo-title"><span>MOVE STEP</span><select id="pam-place-step" class="pam-step-select"><option value="0.01">0.01 · Fine</option><option value="0.05">0.05</option><option value="0.1" selected>0.10 · Normal</option><option value="0.25">0.25</option><option value="1">1.00 · Coarse</option></select></div>
         <div class="pam-gizmo-title" style="margin-top:8px"><span>ROTATION STEP</span><select id="pam-place-rotation-step" class="pam-step-select"><option value="1">1° · Fine</option><option value="5" selected>5° · Normal</option><option value="15">15°</option><option value="45">45° · Coarse</option></select></div></div>
       <div class="pam-place-actions"><button class="place-cancel" data-place="cancel">CANCEL · ESC</button><button class="place-confirm" data-place="place">PLACE OBJECT · ENTER</button></div>
-      <div class="pam-place-keys">LEFT CTRL toggles mouse cursor · Aim camera for surface anchor · WASD moves X/Y · Page Up/Down moves Z · ←/→ moves X · ↑/↓ rotates Z · Q/R rotate X · Mouse wheel changes distance</div>`;
+      <div class="pam-place-keys">LEFT CTRL toggles cursor · Hide cursor to walk and move the camera · Drag the red/green/blue axis to transform · Choose MOVE or ROTATE above · Enter places · Backspace cancels</div>`;
     document.body.appendChild(panel);
+
+    let overlay = document.getElementById('pam-gizmo-overlay');
+    if (!overlay) {
+      overlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      overlay.id = 'pam-gizmo-overlay';
+      overlay.setAttribute('viewBox', '0 0 100 100');
+      overlay.setAttribute('preserveAspectRatio', 'none');
+      overlay.innerHTML = ['x','y','z'].map(axis => {
+        const color = axis === 'x' ? '#ff5555' : axis === 'y' ? '#55e687' : '#5a9bff';
+        return `<g data-axis-group="${axis}"><line class="pam-axis-visible" stroke="${color}" /><line class="pam-axis-hit" data-gizmo-axis="${axis}" /></g>`;
+      }).join('');
+      document.body.appendChild(overlay);
+      const style = document.createElement('style');
+      style.textContent = `
+        #pam-gizmo-overlay{position:fixed;inset:0;width:100vw;height:100vh;z-index:10001;overflow:visible;pointer-events:none}
+        #pam-gizmo-overlay .pam-axis-visible{stroke-width:.28;stroke-linecap:round;filter:drop-shadow(0 0 .18px rgba(255,255,255,.8));pointer-events:none}
+        #pam-gizmo-overlay .pam-axis-hit{stroke:transparent;stroke-width:2.2;stroke-linecap:round;pointer-events:none;cursor:grab}
+        #pam-gizmo-overlay.interactive .pam-axis-hit{pointer-events:stroke}
+        #pam-gizmo-overlay .pam-axis-hit:active{cursor:grabbing}
+        .pam-gizmo-mode{flex:1;padding:8px 10px;border:1px solid rgba(255,255,255,.13);border-radius:8px;background:rgba(255,255,255,.055);color:#aab7d4;font-size:10px;font-weight:800;cursor:pointer}
+        .pam-gizmo-mode.active{background:rgba(130,115,255,.25);border-color:rgba(160,145,255,.6);color:#fff}
+      `;
+      document.head.appendChild(style);
+      let cursorEnabled = true, gizmoMode = 'move', axisScreen = {}, drag = null;
+      const axisVector = axis => {
+        const a = axisScreen[axis];
+        if (!a) return null;
+        const dx = a.x2-a.x1, dy = a.y2-a.y1, len = Math.hypot(dx,dy) || 1;
+        return {x:dx/len,y:dy/len};
+      };
+      overlay.querySelectorAll('[data-gizmo-axis]').forEach(line => {
+        line.addEventListener('pointerdown', event => {
+          if (!cursorEnabled) return;
+          const axis = line.dataset.gizmoAxis, direction = axisVector(axis);
+          if (!direction) return;
+          event.preventDefault();
+          event.stopPropagation();
+          drag = {axis, direction, lastX:event.clientX, lastY:event.clientY};
+          line.setPointerCapture(event.pointerId);
+        });
+        line.addEventListener('pointermove', event => {
+          if (!drag || drag.axis !== line.dataset.gizmoAxis) return;
+          const dx = event.clientX-drag.lastX, dy = event.clientY-drag.lastY;
+          drag.lastX = event.clientX; drag.lastY = event.clientY;
+          const projected = dx*drag.direction.x + dy*drag.direction.y;
+          if (Math.abs(projected) < .15) return;
+          nui('objectPlacementControl',{control:'dragAxis',value:{axis:drag.axis,steps:projected/40,mode:gizmoMode}});
+        });
+        const finishDrag = () => { drag = null; };
+        line.addEventListener('pointerup', finishDrag);
+        line.addEventListener('pointercancel', finishDrag);
+        line.addEventListener('lostpointercapture', finishDrag);
+      });
+      overlay._setAxes = axes => {
+        axisScreen = axes || {};
+        overlay.querySelectorAll('[data-axis-group]').forEach(group => {
+          const a = axisScreen[group.dataset.axisGroup];
+          const visible = group.querySelector('.pam-axis-visible');
+          const hit = group.querySelector('.pam-axis-hit');
+          if (!a) { visible.style.display='none'; hit.style.display='none'; return; }
+          [visible,hit].forEach(line => { line.style.display=''; line.setAttribute('x1',a.x1*100); line.setAttribute('y1',a.y1*100); line.setAttribute('x2',a.x2*100); line.setAttribute('y2',a.y2*100); });
+        });
+      };
+      overlay._setCursor = enabled => { cursorEnabled=!!enabled; overlay.classList.toggle('interactive',cursorEnabled); };
+      overlay._setMode = mode => {
+        gizmoMode = mode === 'rotate' ? 'rotate' : 'move';
+        panel.querySelectorAll('[data-gizmo-mode]').forEach(button => button.classList.toggle('active',button.dataset.gizmoMode===gizmoMode));
+      };
+      overlay._setMode('move');
+    }
     panel.addEventListener('click', event => {
+      const modeButton = event.target.closest('[data-gizmo-mode]');
+      if (modeButton) {
+        const mode = modeButton.dataset.gizmoMode === 'rotate' ? 'rotate' : 'move';
+        overlay._setMode(mode);
+        nui('objectPlacementControl', { control:'gizmoMode', value:mode });
+        return;
+      }
       const button = event.target.closest('[data-place]');
       if (!button) return;
       const control = button.dataset.place;
@@ -480,10 +576,26 @@
       const panel = ensureObjectPlacementPanel();
       panel.classList.toggle('hidden', !message.visible);
       if (message.model) panel.querySelector('#pam-place-model').textContent = message.model;
+      if (!message.visible) {
+        const overlay = document.getElementById('pam-gizmo-overlay');
+        if (overlay && overlay._setCursor) overlay._setCursor(false);
+        if (overlay && overlay._setAxes) overlay._setAxes({});
+      }
     }
     if (message.type === 'PAM_OBJECT_PLACEMENT_CURSOR') {
       const cursorState = document.getElementById('pam-place-cursor-state');
       if (cursorState) cursorState.textContent = message.visible ? 'MOUSE CURSOR: ON · LEFT CTRL TO HIDE' : 'MOUSE CURSOR: OFF · LEFT CTRL TO SHOW';
+      const overlay = document.getElementById('pam-gizmo-overlay');
+      if (overlay && overlay._setCursor) overlay._setCursor(!!message.visible);
+    }
+    if (message.type === 'PAM_GIZMO_AXES') {
+      const overlay = document.getElementById('pam-gizmo-overlay');
+      if (overlay && overlay._setAxes) overlay._setAxes(message.axes || {});
+      if (overlay && overlay._setMode) overlay._setMode(message.mode);
+    }
+    if (message.type === 'PAM_GIZMO_MODE') {
+      const overlay = document.getElementById('pam-gizmo-overlay');
+      if (overlay && overlay._setMode) overlay._setMode(message.mode);
     }
     if (message.type === 'PAM_OBJECT_PLACEMENT_STATE') {
       const panel = ensureObjectPlacementPanel();
@@ -506,6 +618,7 @@
       renderOverview();
       if (state.page !== 'overview') navigate(state.page);
     }
+    if (message.type === 'PAM_MANAGED_PROPS') { state.managedProps = message.payload || []; renderManagedProps(); }
     if (message.type === 'PAM_CATALOG') { if(['vehicles','items','jobs'].includes(message.kind)){state.catalogs[message.kind]=message.payload||[];if(state.page===message.kind)renderCatalog(message.kind);} }
     if (message.type === 'PAM_PLAYER_LIST') { if(state.data) state.data.players=message.payload||[]; if(state.page==='players') renderPlayers(); else if(state.page==='vehicles') renderCatalog('vehicles'); }
     if (message.type === 'PAM_PLAYER_DOSSIER') renderDossier(message.payload||{});

@@ -21,13 +21,13 @@ Config.Ace = { Enabled = true, Prefix = 'poweradmin' }
 Config.Roles = {
     owner = { label = 'Owner', permissions = { '*' } },
     headadmin = { label = 'Head Administrator', permissions = {
-        'dashboard.view','entities.delete','entities.spawn','players.view','players.dossier','players.identifiers','players.inventory','players.money.view','players.money.modify',
+        'dashboard.view','entities.delete','entities.spawn','entities.manage','players.view','players.dossier','players.identifiers','players.inventory','players.money.view','players.money.modify',
         'players.notes.view','players.notes.add','players.history','players.spectate','players.warn','players.ban','players.unban',
         'players.teleport','players.bring','players.freeze','players.heal','players.kick','world.view','world.weather','world.time',
         'vehicles.view','vehicles.spawn','vehicles.give','items.view','items.give','items.create','jobs.view','jobs.create','staff.view','audit.view','resources.view'
     } },
     admin = { label = 'Administrator', permissions = {
-        'dashboard.view','entities.delete','entities.spawn','players.view','players.dossier','players.inventory','players.money.view','players.notes.view','players.notes.add',
+        'dashboard.view','entities.delete','entities.spawn','entities.manage','players.view','players.dossier','players.inventory','players.money.view','players.notes.view','players.notes.add',
         'players.history','players.spectate','players.warn','players.ban','players.teleport','players.bring','players.freeze',
         'players.heal','players.kick','world.view','world.weather','world.time','vehicles.view','vehicles.spawn','vehicles.give','items.view','items.give','jobs.view','audit.view','resources.view'
     } },

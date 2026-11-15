@@ -1,5 +1,5 @@
 PAM = PAM or {}
-PAM.Version = '1.5.9-object-spawner'
+PAM.Version = '1.6.4-managed-props'
 PAM.Events = {
     OpenRequest = 'pam:server:openRequest', Bootstrap = 'pam:client:bootstrap',
     ActionRequest = 'pam:server:action', ActionResult = 'pam:client:actionResult',
@@ -9,7 +9,7 @@ PAM.Events = {
     SpectateStart = 'pam:client:spectateStart', SpectateStop = 'pam:client:spectateStop'
 }
 PAM.Permissions = {
-    'dashboard.view','entities.delete','entities.spawn','players.view','players.teleport','players.bring','players.freeze','players.heal','players.kick','players.ban',
+    'dashboard.view','entities.delete','entities.spawn','entities.manage','players.view','players.teleport','players.bring','players.freeze','players.heal','players.kick','players.ban',
     'world.view','world.weather','world.time','vehicles.view','vehicles.spawn','vehicles.give','staff.view','audit.view','resources.view',
     'players.dossier','players.identifiers','players.inventory','players.money.view','players.money.modify',
     'items.view','items.give','items.create','jobs.view','jobs.create',

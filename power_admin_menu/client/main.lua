@@ -27,9 +27,9 @@ RegisterNetEvent(PAM.Events.ActionResult, function(result)
     SendNUIMessage({ type = 'PAM_ACTION_RESULT', payload = result or {} })
 end)
 
-RegisterNetEvent('pam:client:beginObjectPlacement', function(modelName)
+RegisterNetEvent('pam:client:beginObjectPlacement', function(modelName, options)
     setOpen(false)
-    TriggerEvent('pam:client:startObjectPlacement', modelName)
+    TriggerEvent('pam:client:startObjectPlacement', modelName, options)
 end)
 
 RegisterNUICallback('close', function(_, cb)
