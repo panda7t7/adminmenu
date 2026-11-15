@@ -130,6 +130,7 @@ RegisterNetEvent('pam:server:managedPropRegister', function(netId, model, persis
     end
     if Audit then Audit.Record(src, 'entity.prop.create', nil, { model = model, persistence = persistence, netId = netId, propId = data.id }, true) end
     notify(src, persistence == 'persistent' and 'Persistent prop saved. It will return after server restarts.' or 'Temporary prop registered. It will not return after a server restart.', true)
+    TriggerClientEvent('pam:client:managedPropsList', src, listFor(src))
 end)
 
 
