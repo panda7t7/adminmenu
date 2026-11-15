@@ -2,7 +2,7 @@ local lastObjectSpawnRequest = {}
 
 RegisterNetEvent('pam:server:spawnObjectRequest', function(modelName, persistence)
     local src = source
-    if not Permissions or not Permissions.IsStaff(src) or not Permissions.Has(src, 'entities.spawn') then
+    if not Permissions or not Permissions.IsStaff(src) or not Permissions.Has(src, 'entities.spawn') or not Permissions.Has(src, 'entities.manage') then
         if Audit then Audit.Record(src, 'entity.spawn.denied', nil, {}, false) end
         TriggerClientEvent('chat:addMessage', src, { args = { '^1POWER ADMIN', 'You do not have permission to spawn objects.' } })
         return
@@ -27,6 +27,10 @@ RegisterNetEvent('pam:server:spawnObjectRequest', function(modelName, persistenc
 
     if Audit then Audit.Record(src, 'entity.spawn.begin', nil, { model = modelName }, true) end
     persistence = persistence == 'persistent' and 'persistent' or 'temporary'
+    if persistence == 'persistent' and (not Database or not Database.Ready) then
+        TriggerClientEvent('chat:addMessage', src, { args = { '^1POWER ADMIN', 'Database is unavailable. Persistent props cannot be placed right now.' } })
+        return
+    end
     TriggerClientEvent('pam:client:beginObjectPlacement', src, modelName, { persistence = persistence })
 end)
 
