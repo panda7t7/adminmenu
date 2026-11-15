@@ -46,7 +46,8 @@ server_scripts {
     'server/player_intelligence.lua',
     'server/main.lua',
     'server/vector.lua',
-    'server/object_spawner.lua'
+    'server/object_spawner.lua',
+    'server/managed_objects.lua'
 }
 
 files {
