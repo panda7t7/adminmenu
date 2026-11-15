@@ -36,7 +36,7 @@ end)
 
 RegisterNUICallback('spawnObject', function(data, cb)
     local model = type(data) == 'table' and data.model or nil
-    TriggerServerEvent('pam:server:spawnObjectRequest', model)
+    TriggerServerEvent('pam:server:spawnObjectRequest', model, type(data) == 'table' and data.persistence or 'temporary')
     cb({ success = true })
 end)
 
@@ -51,3 +51,5 @@ end)
 
 RegisterNUICallback('managedPropsList', function(_, cb) TriggerServerEvent('pam:server:managedPropsList'); cb({ success = true }) end)
 RegisterNUICallback('managedPropDelete', function(data, cb) TriggerServerEvent('pam:server:managedPropDelete', type(data) == 'table' and data.id or nil); cb({ success = true }) end)
+
+RegisterNUICallback('managedPropEdit', function(data, cb) TriggerServerEvent('pam:server:managedPropEditStart', type(data) == 'table' and data.id or nil); cb({ success = true }) end)
