@@ -281,6 +281,7 @@ end)
 
 RegisterNetEvent('pam:client:editManagedProp', function(row)
     if type(row) ~= 'table' or type(row.model) ~= 'string' then return end
+    SendNUIMessage({ type = 'PAM_VISIBILITY', visible = false })
     TriggerEvent('pam:client:startObjectPlacement', row.model, { editId=row.id, coords=row.coords, rotation=row.rotation })
 end)
 
