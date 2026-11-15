@@ -1,0 +1,20 @@
+# Database must start before Power Admin Menu.
+ensure oxmysql
+
+# DEFAULT QBOX STACK (recommended example)
+ensure ox_lib
+ensure qbx_core
+ensure qbx_vehicles
+ensure qbx_garages
+ensure qbx_vehiclekeys
+ensure ox_inventory
+
+# For QBCore, use qb-core and your inventory instead of qbx_core.
+# For ESX, use es_extended and your configured inventory.
+# Do not start multiple framework cores unless your server intentionally uses them.
+
+ensure power_admin_menu
+
+# Example ACE assignment (replace identifier)
+# add_ace group.admin poweradmin.owner allow
+# add_principal identifier.license:YOUR_LICENSE_IDENTIFIER group.admin

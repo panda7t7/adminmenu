@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Power Admin Menu</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/liquid-glass.css">
+  <link rel="stylesheet" href="css/vector.css">
+</head>
+<body>
+  <main id="app" class="app hidden" aria-hidden="true">
+    <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+    <section class="shell">
+      <aside class="sidebar">
+        <div class="brand"><div class="brand-mark"><span>✦</span></div><div><strong>POWER</strong><small>ADMIN MENU</small></div></div>
+        <div class="server-status"><i></i><span>SERVER CONNECTION</span><b>ONLINE</b></div>
+        <nav class="navigation">
+          <button class="nav-item active" data-page="overview"><span class="nav-icon">◈</span><span>Command Center</span><kbd>01</kbd></button>
+          <button class="nav-item" data-page="players"><span class="nav-icon">◎</span><span>Players</span><kbd>02</kbd></button>
+          <button class="nav-item" data-page="vehicles"><span class="nav-icon">▰</span><span>Vehicles</span><kbd>03</kbd></button>
+          <button class="nav-item" data-page="items"><span class="nav-icon">▣</span><span>Items</span><kbd>04</kbd></button>
+          <button class="nav-item" data-page="jobs"><span class="nav-icon">✥</span><span>Jobs</span><kbd>05</kbd></button>
+          <button class="nav-item" data-page="world"><span class="nav-icon">⌖</span><span>World Control</span><kbd>06</kbd></button>
+          <button class="nav-item" data-page="security"><span class="nav-icon">⬡</span><span>Security</span><kbd>07</kbd></button>
+          <button class="nav-item" data-page="system"><span class="nav-icon">▦</span><span>System</span><kbd>08</kbd></button>
+          <div class="nav-section-label">DEVELOPER TOOLS</div>
+          <button class="nav-item" data-page="developer"><span class="nav-icon">⌘</span><span>Developer Tools</span><kbd>09</kbd></button>
+        </nav>
+        <div class="sidebar-bottom"><div class="operator-avatar">PA</div><div class="operator-info"><strong id="operator-role">Administrator</strong><small id="framework-label">Framework loading</small></div><button id="close-button" class="icon-button" title="Close menu">×</button></div>
+      </aside>
+      <section class="main-area">
+        <header class="topbar"><div><div class="eyebrow">POWER ADMINISTRATION / <span id="breadcrumb">OVERVIEW</span></div><h1 id="page-title">Command Center</h1></div><div class="top-actions"><div class="live-pill"><i></i> LIVE SYSTEM</div><button class="icon-button" id="refresh-button" title="Refresh">↻</button><button class="icon-button" id="top-close" title="Close">×</button></div></header>
+        <div class="content" id="page-content">
+          <div class="welcome-row"><div><div class="eyebrow">SYSTEM OVERVIEW</div><h2>Welcome back, <span>Operator.</span></h2><p>Your server operations at a glance.</p></div><div class="date-chip">NEXUS CORE <b>● ACTIVE</b></div></div>
+          <div class="stats-grid">
+            <article class="stat-card"><div class="stat-head"><span>PLAYERS ONLINE</span><span class="stat-symbol">◎</span></div><strong id="stat-players">—</strong><small>Connected players</small></article>
+            <article class="stat-card"><div class="stat-head"><span>STAFF ACCESS</span><span class="stat-symbol">⬡</span></div><strong id="stat-staff">VERIFIED</strong><small>Current operator session</small></article>
+            <article class="stat-card"><div class="stat-head"><span>FRAMEWORK</span><span class="stat-symbol">⌘</span></div><strong class="stat-text" id="stat-framework">—</strong><small>Active adapter</small></article>
+            <article class="stat-card"><div class="stat-head"><span>AI ASSISTANT</span><span class="stat-symbol">✧</span></div><strong class="stat-text" id="stat-ai">DISABLED</strong><small>Optional integration</small></article>
+          </div>
+          <div class="section-heading"><div><div class="eyebrow">OPERATIONS</div><h3>Quick access</h3></div><span class="subtle-label">AVAILABLE MODULES</span></div>
+          <div class="quick-grid">
+            <button class="quick-card" data-go="players"><span class="quick-icon violet">◎</span><strong>Player management</strong><small>Inspect connected players</small><span class="card-arrow">↗</span></button>
+            <button class="quick-card" data-go="world"><span class="quick-icon cyan">⌖</span><strong>World operations</strong><small>Weather and time controls</small><span class="card-arrow">↗</span></button>
+            <button class="quick-card" data-go="security"><span class="quick-icon pink">⬡</span><strong>Security center</strong><small>Permissions and audit status</small><span class="card-arrow">↗</span></button>
+          </div>
+          <div class="section-heading activity-heading"><div><div class="eyebrow">SESSION MONITOR</div><h3>Connected players</h3></div><button class="text-button" data-go="players">VIEW PLAYERS ↗</button></div>
+          <div class="table-wrap"><table><thead><tr><th>PLAYER</th><th>SERVER ID</th><th>JOB</th><th>PING</th><th>STATUS</th></tr></thead><tbody id="recent-players"><tr><td colspan="5" class="empty-state">Waiting for server data...</td></tr></tbody></table></div>
+        </div>
+        <footer class="footer"><span>POWER ADMIN MENU <b>v1.5.6</b></span><span>SECURE SESSION <i></i> <kbd>ESC</kbd> TO CLOSE</span></footer>
+      </section>
+    </section>
+    <div id="toast-region" class="toast-region" aria-live="polite"></div>
+  </main>
+  <aside id="vector-tool" class="vector-tool" aria-hidden="true">
+    <div class="vector-tool-head"><span class="vector-live-dot"></span><span>LIVE POSITION</span><kbd>/vector</kbd></div>
+    <div class="vector-coordinates"><div><small>X</small><strong id="vector-x">0.000</strong></div><div><small>Y</small><strong id="vector-y">0.000</strong></div><div><small>Z</small><strong id="vector-z">0.000</strong></div><div><small>HEADING</small><strong id="vector-heading">0.000</strong></div></div>
+    <div class="vector-menu-label">COPY FORMAT <span>↑ ↓</span></div>
+    <div id="vector-options" class="vector-options">
+      <div class="vector-option selected" data-format="vector3"><span>01</span><b>vector3</b><small>ENTER ↵</small></div>
+      <div class="vector-option" data-format="vec3"><span>02</span><b>vec3</b><small>ENTER ↵</small></div>
+      <div class="vector-option" data-format="vector4"><span>03</span><b>vector4</b><small>ENTER ↵</small></div>
+      <div class="vector-option" data-format="vec4"><span>04</span><b>vec4</b><small>ENTER ↵</small></div>
+      <div class="vector-option laser-option" data-format="laser"><span>05</span><b>Laser Object Mode</b><small id="laser-mode-state">OFF · ENTER</small></div>
+    </div>
+    <section id="laser-details" class="laser-details" aria-live="polite">
+      <div class="laser-details-head"><span>LASER TARGET</span><b id="laser-target-status">INACTIVE</b></div>
+      <div id="laser-target-empty" class="laser-empty">Enable Laser Object Mode and aim at an entity</div>
+      <div id="laser-target-info" class="laser-target-info" hidden>
+        <div><small>TYPE</small><strong id="laser-type">—</strong></div>
+        <div><small>MODEL HASH</small><strong id="laser-model">—</strong></div>
+        <div><small>ENTITY / NET ID</small><strong id="laser-ids">—</strong></div>
+        <div><small>HEALTH</small><strong id="laser-health">—</strong></div>
+        <div><small>COORDINATES</small><strong id="laser-coords">—</strong></div>
+        <div><small>HEADING</small><strong id="laser-heading">—</strong></div>
+        <div><small>DISTANCE</small><strong id="laser-distance">—</strong></div>
+        <div class="laser-detail-wide"><small>ENTITY DETAILS</small><strong id="laser-extra">—</strong></div>
+      </div>
+      <div class="laser-hotkeys"><span><kbd>L</kbd> TOGGLE</span><span><kbd>C</kbd> COPY</span><span><kbd>DEL</kbd> DELETE</span></div>
+    </section>
+    <button id="vector-copy-button" class="vector-copy-button" type="button">COPY SELECTED FORMAT</button>
+    <div id="vector-copy-status" class="vector-copy-status">Choose a format and press ENTER or click copy</div>
+    <div class="vector-tool-foot"><span>MOVE FREELY</span><span><kbd>ESC</kbd> CLOSE</span></div>
+  </aside>
+  <script src="js/app.js"></script>
+  <script src="js/vector.js"></script>
+</body>
+</html>
