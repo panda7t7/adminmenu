@@ -131,7 +131,7 @@ local function finishPlacement()
         SetNetworkIdCanMigrate(netId, true)
     end
     SetModelAsNoLongerNeeded(model)
-    if netId and netId ~= 0 then TriggerServerEvent('pam:server:managedPropRegister', netId, modelName, options.persistence or 'temporary') end
+    if netId and netId ~= 0 then TriggerServerEvent('pam:server:managedPropRegister', netId, modelName, options.persistence or 'temporary', options.spawnToken) end
     placementOptions, placementBaseCoords, placementModelName = {}, nil, nil
     objectNotify(('Object placed successfully%s'):format(netId and netId ~= 0 and (' (Net ID: ' .. netId .. ')') or ''))
 end
