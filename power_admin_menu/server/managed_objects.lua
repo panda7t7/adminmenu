@@ -32,8 +32,8 @@ local function spawnStored(row)
     if not model:match('^[%w_]+$') or #model < 3 or #model > 64 then return end
     local entity = CreateObjectNoOffset(joaat(model), tonumber(coords.x) or 0.0, tonumber(coords.y) or 0.0, tonumber(coords.z) or 0.0, true, true, false)
     if entity and entity ~= 0 and DoesEntityExist(entity) then
-        SetEntityRotation(entity, tonumber(rotation.x) or 0.0, tonumber(rotation.y) or 0.0, tonumber(rotation.z) or 0.0, 2, true)
-        FreezeEntityPosition(entity, true)
+        SetEntityOrphanMode(entity, 2)
+        Entity(entity).state:set('pamManagedPropTransform', { rotation = rotation }, true)
         local netId = NetworkGetNetworkIdFromEntity(entity)
         ManagedObjects.Restored = ManagedObjects.Restored or {}
         ManagedObjects.Restored[tonumber(row.id)] = { netId = netId, model = model, coords = coords, rotation = rotation, persistence = 'persistent', id = tonumber(row.id), createdBy = row.created_by or 'Unknown' }
@@ -130,7 +130,7 @@ RegisterNetEvent('pam:server:managedPropRegister', function(netId, model, persis
 end)
 
 
-RegisterNetEvent('pam:server:managedPropEdit', function(id, coords, rotation)
+RegisterNetEvent('pam:server:managedPropEdit', function(id, coords, rotation, netId)
     local src = source
     if not canManage(src) then return end
     if type(coords) ~= 'table' or type(rotation) ~= 'table' then return end
@@ -144,12 +144,12 @@ RegisterNetEvent('pam:server:managedPropEdit', function(id, coords, rotation)
     if not numeric then return end
     local row=isTemp and ManagedObjects.Temporary[numeric] or (ManagedObjects.Restored and ManagedObjects.Restored[numeric])
     if not row then return notify(src,'Managed prop not found.',false) end
-    local entity=row.netId and NetworkGetEntityFromNetworkId(row.netId) or 0
-    if not entity or entity==0 or not DoesEntityExist(entity) or GetEntityType(entity)~=3 then return notify(src,'Managed entity is not currently available.',false) end
+    netId=tonumber(netId)
+    if not netId or netId~=tonumber(row.netId) then return notify(src,'Managed entity reference did not match.',false) end
+    local entity=NetworkGetEntityFromNetworkId(netId)
+    if not entity or entity==0 or not DoesEntityExist(entity) or GetEntityType(entity)~=3 or GetEntityModel(entity)~=joaat(row.model) then return notify(src,'Managed entity is not currently available.',false) end
+    if NetworkGetEntityOwner(entity)~=src then return notify(src,'Take control of the prop before saving its edit.',false) end
     if #(GetEntityCoords(GetPlayerPed(src))-vector3(x,y,z))>100.0 then return notify(src,'Edited position is too far away.',false) end
-    SetEntityCoords(entity,x,y,z,false,false,false,false)
-    SetEntityRotation(entity,rx,ry,rz,2,true)
-    FreezeEntityPosition(entity,true)
     row.coords,row.rotation={x=x,y=y,z=z},{x=rx,y=ry,z=rz}
     if not isTemp then MySQL.update.await('UPDATE pam_managed_props SET coords = ?, rotation = ? WHERE id = ?', {json.encode(row.coords),json.encode(row.rotation),numeric}) end
     if Audit then Audit.Record(src,'entity.prop.edit',nil,{propId=id,coords=row.coords,rotation=row.rotation},true) end
