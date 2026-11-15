@@ -48,3 +48,6 @@ RegisterNUICallback('objectPlacementControl', function(data, cb)
     TriggerEvent('pam:client:objectPlacementControl', data.control, data.value)
     cb({ success = true })
 end)
+
+RegisterNUICallback('managedPropsList', function(_, cb) TriggerServerEvent('pam:server:managedPropsList'); cb({ success = true }) end)
+RegisterNUICallback('managedPropDelete', function(data, cb) TriggerServerEvent('pam:server:managedPropDelete', type(data) == 'table' and data.id or nil); cb({ success = true }) end)
