@@ -466,6 +466,7 @@
       <div class="pam-place-cursor-state" id="pam-place-cursor-state">MOUSE CURSOR: ON · LEFT CTRL TO HIDE</div>
       <div class="pam-place-coords"><span>X POSITION<b id="pam-place-x">0.000</b></span><span>Y POSITION<b id="pam-place-y">0.000</b></span><span>Z POSITION<b id="pam-place-z">0.000</b></span></div>
       <div class="pam-place-coords"><span>ROT X<b id="pam-place-rx">0.0°</b></span><span>ROT Y<b id="pam-place-ry">0.0°</b></span><span>ROT Z<b id="pam-place-rz">0.0°</b></span></div>
+      <div class="pam-gizmo-section"><div class="pam-gizmo-title"><span>AXIS INTERACTION MODE</span><span>DRAG IN WORLD</span></div><div class="pam-gizmo-row"><button data-gizmo-mode="move" class="pam-gizmo-mode active">↔ MOVE AXES</button><button data-gizmo-mode="rotate" class="pam-gizmo-mode">⟳ ROTATE AXES</button></div></div>
       <div class="pam-gizmo-section"><div class="pam-gizmo-title"><span>MOVE · WORLD AXES</span><span>± STEP</span></div>
         <div class="pam-gizmo-row"><b class="pam-gizmo-axis x">X</b><button data-place="moveX" data-value="-1">− X</button><button data-place="moveX" data-value="1">+ X</button><button data-place="resetOffset">RESET</button></div>
         <div class="pam-gizmo-row"><b class="pam-gizmo-axis y">Y</b><button data-place="moveY" data-value="-1">− Y</button><button data-place="moveY" data-value="1">+ Y</button><span></span></div>
@@ -481,7 +482,84 @@
       <div class="pam-place-actions"><button class="place-cancel" data-place="cancel">CANCEL · ESC</button><button class="place-confirm" data-place="place">PLACE OBJECT · ENTER</button></div>
       <div class="pam-place-keys">LEFT CTRL toggles mouse cursor · Aim camera for surface anchor · WASD moves X/Y · Page Up/Down moves Z · ←/→ moves X · ↑/↓ rotates Z · Q/R rotate X · Mouse wheel changes distance</div>`;
     document.body.appendChild(panel);
+
+    let overlay = document.getElementById('pam-gizmo-overlay');
+    if (!overlay) {
+      overlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      overlay.id = 'pam-gizmo-overlay';
+      overlay.setAttribute('viewBox', '0 0 100 100');
+      overlay.setAttribute('preserveAspectRatio', 'none');
+      overlay.innerHTML = ['x','y','z'].map(axis => {
+        const color = axis === 'x' ? '#ff5555' : axis === 'y' ? '#55e687' : '#5a9bff';
+        return `<g data-axis-group="${axis}"><line class="pam-axis-visible" stroke="${color}" /><line class="pam-axis-hit" data-gizmo-axis="${axis}" /></g>`;
+      }).join('');
+      document.body.appendChild(overlay);
+      const style = document.createElement('style');
+      style.textContent = `
+        #pam-gizmo-overlay{position:fixed;inset:0;width:100vw;height:100vh;z-index:10001;overflow:visible;pointer-events:none}
+        #pam-gizmo-overlay .pam-axis-visible{stroke-width:.28;stroke-linecap:round;filter:drop-shadow(0 0 .18px rgba(255,255,255,.8));pointer-events:none}
+        #pam-gizmo-overlay .pam-axis-hit{stroke:transparent;stroke-width:2.2;stroke-linecap:round;pointer-events:none;cursor:grab}
+        #pam-gizmo-overlay.interactive .pam-axis-hit{pointer-events:stroke}
+        #pam-gizmo-overlay .pam-axis-hit:active{cursor:grabbing}
+        .pam-gizmo-mode{flex:1;padding:8px 10px;border:1px solid rgba(255,255,255,.13);border-radius:8px;background:rgba(255,255,255,.055);color:#aab7d4;font-size:10px;font-weight:800;cursor:pointer}
+        .pam-gizmo-mode.active{background:rgba(130,115,255,.25);border-color:rgba(160,145,255,.6);color:#fff}
+      `;
+      document.head.appendChild(style);
+      let cursorEnabled = true, gizmoMode = 'move', axisScreen = {}, drag = null;
+      const axisVector = axis => {
+        const a = axisScreen[axis];
+        if (!a) return null;
+        const dx = a.x2-a.x1, dy = a.y2-a.y1, len = Math.hypot(dx,dy) || 1;
+        return {x:dx/len,y:dy/len};
+      };
+      overlay.querySelectorAll('[data-gizmo-axis]').forEach(line => {
+        line.addEventListener('pointerdown', event => {
+          if (!cursorEnabled) return;
+          const axis = line.dataset.gizmoAxis, direction = axisVector(axis);
+          if (!direction) return;
+          event.preventDefault();
+          event.stopPropagation();
+          drag = {axis, direction, lastX:event.clientX, lastY:event.clientY};
+          line.setPointerCapture(event.pointerId);
+        });
+        line.addEventListener('pointermove', event => {
+          if (!drag || drag.axis !== line.dataset.gizmoAxis) return;
+          const dx = event.clientX-drag.lastX, dy = event.clientY-drag.lastY;
+          drag.lastX = event.clientX; drag.lastY = event.clientY;
+          const projected = dx*drag.direction.x + dy*drag.direction.y;
+          if (Math.abs(projected) < .15) return;
+          nui('objectPlacementControl',{control:'dragAxis',value:{axis:drag.axis,steps:projected/40,mode:gizmoMode}});
+        });
+        const finishDrag = () => { drag = null; };
+        line.addEventListener('pointerup', finishDrag);
+        line.addEventListener('pointercancel', finishDrag);
+        line.addEventListener('lostpointercapture', finishDrag);
+      });
+      overlay._setAxes = axes => {
+        axisScreen = axes || {};
+        overlay.querySelectorAll('[data-axis-group]').forEach(group => {
+          const a = axisScreen[group.dataset.axisGroup];
+          const visible = group.querySelector('.pam-axis-visible');
+          const hit = group.querySelector('.pam-axis-hit');
+          if (!a) { visible.style.display='none'; hit.style.display='none'; return; }
+          [visible,hit].forEach(line => { line.style.display=''; line.setAttribute('x1',a.x1*100); line.setAttribute('y1',a.y1*100); line.setAttribute('x2',a.x2*100); line.setAttribute('y2',a.y2*100); });
+        });
+      };
+      overlay._setCursor = enabled => { cursorEnabled=!!enabled; overlay.classList.toggle('interactive',cursorEnabled); };
+      overlay._setMode = mode => {
+        gizmoMode = mode === 'rotate' ? 'rotate' : 'move';
+        panel.querySelectorAll('[data-gizmo-mode]').forEach(button => button.classList.toggle('active',button.dataset.gizmoMode===gizmoMode));
+      };
+      overlay._setMode('move');
+    }
     panel.addEventListener('click', event => {
+      const modeButton = event.target.closest('[data-gizmo-mode]');
+      if (modeButton) {
+        const mode = modeButton.dataset.gizmoMode === 'rotate' ? 'rotate' : 'move';
+        overlay._setMode(mode);
+        nui('objectPlacementControl', { control:'gizmoMode', value:mode });
+        return;
+      }
       const button = event.target.closest('[data-place]');
       if (!button) return;
       const control = button.dataset.place;
@@ -502,6 +580,17 @@
     if (message.type === 'PAM_OBJECT_PLACEMENT_CURSOR') {
       const cursorState = document.getElementById('pam-place-cursor-state');
       if (cursorState) cursorState.textContent = message.visible ? 'MOUSE CURSOR: ON · LEFT CTRL TO HIDE' : 'MOUSE CURSOR: OFF · LEFT CTRL TO SHOW';
+      const overlay = document.getElementById('pam-gizmo-overlay');
+      if (overlay && overlay._setCursor) overlay._setCursor(!!message.visible);
+    }
+    if (message.type === 'PAM_GIZMO_AXES') {
+      const overlay = document.getElementById('pam-gizmo-overlay');
+      if (overlay && overlay._setAxes) overlay._setAxes(message.axes || {});
+      if (overlay && overlay._setMode) overlay._setMode(message.mode);
+    }
+    if (message.type === 'PAM_GIZMO_MODE') {
+      const overlay = document.getElementById('pam-gizmo-overlay');
+      if (overlay && overlay._setMode) overlay._setMode(message.mode);
     }
     if (message.type === 'PAM_OBJECT_PLACEMENT_STATE') {
       const panel = ensureObjectPlacementPanel();
