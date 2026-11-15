@@ -120,6 +120,9 @@ RegisterNetEvent('pam:server:managedPropRegister', function(netId, model, persis
         end)
         if not ok or not id then return notify(src, 'Could not save this persistent prop.', false) end
         data.id = tonumber(id)
+        ManagedObjects.Restored = ManagedObjects.Restored or {}
+        data.persistence = 'persistent'
+        ManagedObjects.Restored[data.id] = data
     else
         data.id = netId
         data.netId = netId
