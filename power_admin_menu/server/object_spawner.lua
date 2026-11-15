@@ -31,7 +31,9 @@ RegisterNetEvent('pam:server:spawnObjectRequest', function(modelName, persistenc
         TriggerClientEvent('chat:addMessage', src, { args = { '^1POWER ADMIN', 'Database is unavailable. Persistent props cannot be placed right now.' } })
         return
     end
-    TriggerClientEvent('pam:client:beginObjectPlacement', src, modelName, { persistence = persistence })
+    local spawnToken = ManagedObjects and ManagedObjects.AuthorizeSpawn and ManagedObjects.AuthorizeSpawn(src, modelName, persistence)
+    if not spawnToken then return end
+    TriggerClientEvent('pam:client:beginObjectPlacement', src, modelName, { persistence = persistence, spawnToken = spawnToken })
 end)
 
 AddEventHandler('playerDropped', function()
