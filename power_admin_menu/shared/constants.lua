@@ -1,5 +1,5 @@
 PAM = PAM or {}
-PAM.Version = '1.5.9-object-spawner'
+PAM.Version = '1.6.4-managed-props'
 PAM.Events = {
     OpenRequest = 'pam:server:openRequest', Bootstrap = 'pam:client:bootstrap',
     ActionRequest = 'pam:server:action', ActionResult = 'pam:client:actionResult',
