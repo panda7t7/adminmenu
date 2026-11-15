@@ -1,6 +1,6 @@
 local lastObjectSpawnRequest = {}
 
-RegisterNetEvent('pam:server:spawnObjectRequest', function(modelName)
+RegisterNetEvent('pam:server:spawnObjectRequest', function(modelName, persistence)
     local src = source
     if not Permissions or not Permissions.IsStaff(src) or not Permissions.Has(src, 'entities.spawn') then
         if Audit then Audit.Record(src, 'entity.spawn.denied', nil, {}, false) end
@@ -26,7 +26,8 @@ RegisterNetEvent('pam:server:spawnObjectRequest', function(modelName)
     end
 
     if Audit then Audit.Record(src, 'entity.spawn.begin', nil, { model = modelName }, true) end
-    TriggerClientEvent('pam:client:beginObjectPlacement', src, modelName)
+    persistence = persistence == 'persistent' and 'persistent' or 'temporary'
+    TriggerClientEvent('pam:client:beginObjectPlacement', src, modelName, { persistence = persistence })
 end)
 
 AddEventHandler('playerDropped', function()
