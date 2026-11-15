@@ -105,7 +105,21 @@ local function finishPlacement()
     previewObject, previewModel, placementCoords, surfaceCoords = 0, 0, nil, nil
     setPlacementUi(false)
     if options.editId then
-        TriggerServerEvent('pam:server:managedPropEdit', options.editId, {x=coords.x,y=coords.y,z=coords.z}, {x=rotation.x,y=rotation.y,z=rotation.z})
+        local netId = tonumber(options.editNetId) or 0
+        local entity = netId ~= 0 and NetworkGetEntityFromNetworkId(netId) or 0
+        local deadline = GetGameTimer() + 2500
+        while entity ~= 0 and DoesEntityExist(entity) and not NetworkHasControlOfEntity(entity) and GetGameTimer() < deadline do
+            NetworkRequestControlOfEntity(entity)
+            Wait(25)
+        end
+        if entity == 0 or not DoesEntityExist(entity) or not NetworkHasControlOfEntity(entity) then
+            objectNotify('Could not take network control of this prop. Move closer and try again.', true)
+        else
+            SetEntityCoordsNoOffset(entity, coords.x, coords.y, coords.z, false, false, false)
+            SetEntityRotation(entity, rotation.x, rotation.y, rotation.z, 2, true)
+            FreezeEntityPosition(entity, true)
+            TriggerServerEvent('pam:server:managedPropEdit', options.editId, {x=coords.x,y=coords.y,z=coords.z}, {x=rotation.x,y=rotation.y,z=rotation.z}, netId)
+        end
         SetModelAsNoLongerNeeded(model)
         placementOptions, placementBaseCoords, placementModelName = {}, nil, nil
         return
@@ -282,7 +296,7 @@ end)
 RegisterNetEvent('pam:client:editManagedProp', function(row)
     if type(row) ~= 'table' or type(row.model) ~= 'string' then return end
     SendNUIMessage({ type = 'PAM_VISIBILITY', visible = false })
-    TriggerEvent('pam:client:startObjectPlacement', row.model, { editId=row.id, coords=row.coords, rotation=row.rotation })
+    TriggerEvent('pam:client:startObjectPlacement', row.model, { editId=row.id, editNetId=row.netId, coords=row.coords, rotation=row.rotation })
 end)
 
 RegisterNetEvent('pam:client:managedPropsList', function(rows)
@@ -291,4 +305,21 @@ end)
 
 RegisterNetEvent('pam:client:managedObjectNotice', function(message, success)
     objectNotify(message, not success)
+end)
+
+AddStateBagChangeHandler('pamManagedPropTransform', nil, function(bagName, _, value)
+    if type(value) ~= 'table' or type(value.rotation) ~= 'table' then return end
+    CreateThread(function()
+        local deadline = GetGameTimer() + 15000
+        local entity = 0
+        while GetGameTimer() < deadline do
+            entity = GetEntityFromStateBagName(bagName)
+            if entity ~= 0 and DoesEntityExist(entity) and NetworkGetEntityOwner(entity) == PlayerId() then break end
+            Wait(100)
+        end
+        if entity == 0 or not DoesEntityExist(entity) or NetworkGetEntityOwner(entity) ~= PlayerId() then return end
+        local rotation = value.rotation
+        SetEntityRotation(entity, tonumber(rotation.x) or 0.0, tonumber(rotation.y) or 0.0, tonumber(rotation.z) or 0.0, 2, true)
+        FreezeEntityPosition(entity, true)
+    end)
 end)
