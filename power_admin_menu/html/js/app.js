@@ -480,7 +480,7 @@
       <div class="pam-gizmo-section"><div class="pam-gizmo-title"><span>MOVE STEP</span><select id="pam-place-step" class="pam-step-select"><option value="0.01">0.01 · Fine</option><option value="0.05">0.05</option><option value="0.1" selected>0.10 · Normal</option><option value="0.25">0.25</option><option value="1">1.00 · Coarse</option></select></div>
         <div class="pam-gizmo-title" style="margin-top:8px"><span>ROTATION STEP</span><select id="pam-place-rotation-step" class="pam-step-select"><option value="1">1° · Fine</option><option value="5" selected>5° · Normal</option><option value="15">15°</option><option value="45">45° · Coarse</option></select></div></div>
       <div class="pam-place-actions"><button class="place-cancel" data-place="cancel">CANCEL · ESC</button><button class="place-confirm" data-place="place">PLACE OBJECT · ENTER</button></div>
-      <div class="pam-place-keys">LEFT CTRL toggles mouse cursor · Aim camera for surface anchor · WASD moves X/Y · Page Up/Down moves Z · ←/→ moves X · ↑/↓ rotates Z · Q/R rotate X · Mouse wheel changes distance</div>`;
+      <div class="pam-place-keys">LEFT CTRL toggles cursor · Hide cursor to walk and move the camera · Drag the red/green/blue axis to transform · Choose MOVE or ROTATE above · Enter places · Backspace cancels</div>`;
     document.body.appendChild(panel);
 
     let overlay = document.getElementById('pam-gizmo-overlay');
